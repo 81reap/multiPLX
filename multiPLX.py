@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 from video_player import video_player as vp
 
+N = 3
 files = queue.queue()
 
 class BaseTkContainer:
@@ -15,13 +16,15 @@ class BaseTkContainer:
         self.root.protocol("WM_DELETE_WINDOW", self.delete_window)
         self.root.geometry("1920x1080") # default to 1080p
         self.root.configure(background='black')
-        self.root.resizable(0, 0)
+        self.root.size = self.root.winfo_width() - self.root.winfo_height()
+        #self.root.resizable(0, 0)
         
         self.theme = ttk.Style()
         self.theme.theme_use("alt")
         
         self.frame = ttk.Frame(self.root)
-        self.vlc = vlc.Instance()
+        self.frame.pack(fill=tk.BOTH, expand=1)
+
         self.players = []
 
     def delete_window(self):
@@ -31,14 +34,22 @@ class BaseTkContainer:
         os._exit(1)
 
     def update_window(self):
+        width = self.root.winfo_width()
+        height = self.root.winfo_height()
+
         for player in self.players:
+            # resize player to fit current window
+            if self.root.size != width-height:
+                player.player.configure(width=width//N, height=height//N)
+
             if player.isDone() :
                 print("update :: new media")
                 player.playMedia(files.dequeue())
+        
         self.root.after(1000, self.update_window)
 
     def add_player(self, row, col, file):
-        player = vp(self.frame, self.vlc, row, col)
+        player = vp(self.frame, row, col)
         player.playMedia(file)
         self.players.append(player)
     
@@ -46,8 +57,6 @@ class BaseTkContainer:
         return "Base tk Container"
 
 if __name__ == "__main__":
-    N = 2
-
     # 1. get the files
     path = "D:\\.plex\\.sus\\"
     files.add_dir(path)
@@ -57,13 +66,9 @@ if __name__ == "__main__":
     root = BaseTkContainer()
 
     # 3. set up video streams
-    root.frame.columnconfigure(0, weight=1)
-    root.frame.columnconfigure(1, weight=1)
-
-    root.add_player(0,0,files.dequeue())
-    root.add_player(0,1,files.dequeue())
-    root.add_player(1,0,files.dequeue())
-    root.add_player(1,1,files.dequeue())
+    for col in range(0, N):
+        for row in range(0, N):
+            root.add_player(col, row, files.dequeue())
 
     # 4. create perodic update function to refresh finished streams
     root.update_window()
